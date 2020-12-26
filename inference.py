@@ -10,10 +10,9 @@ from util import *
 from variables import *
 
 physical_devices = tf.config.experimental.list_physical_devices('GPU')
-print("\nNum GPUs Available: {}\n".format(len(physical_devices)))
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
-class InferenceModel(object):
+class TestModel(object):
     def TFconverter(self, keras_model):
         converter = tf.lite.TFLiteConverter.from_keras_model(keras_model)
         converter.optimizations = [tf.lite.Optimize.DEFAULT]

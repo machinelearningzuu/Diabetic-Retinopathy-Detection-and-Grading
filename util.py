@@ -3,7 +3,10 @@ import shutil
 import cv2 as cv
 import numpy as np
 import pandas as pd
+os.environ['TF_CPP_MIN_LOG_LEVEL'] = '3'
 import tensorflow as tf
+import logging
+logging.getLogger('tensorflow').disabled = True
 from pathlib import Path
 from collections import Counter
 from sklearn.utils import shuffle
@@ -11,8 +14,11 @@ from sklearn.model_selection import train_test_split
 
 from variables import*
 
+physical_devices = tf.config.experimental.list_physical_devices('GPU')
+tf.config.experimental.set_memory_growth(physical_devices[0], True)
+
 def preprocessing_function(img):
-    img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
+    img = tf.keras.applications.vgg16.preprocess_input(img)
     return img
 
 def get_class_names():
@@ -109,7 +115,7 @@ def preprocess_data_directories():
 
 def image_data_generator():
     classes =  list(map(str, get_class_names()))
-    preprocess_data_directories()
+    # preprocess_data_directories()
     
     train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
                                     rotation_range = rotation_range,

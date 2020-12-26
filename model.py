@@ -36,26 +36,21 @@ class DiabeticRetinopathyDetection(object):
         self.train_step = self.train_generator.samples // batch_size
 
     def model_conversion(self):
-        functional_model = tf.keras.applications.MobileNetV2(
-                                                    weights = None, 
-                                                    include_top=False, 
-                                                    input_shape=input_shape
-                                                             )
+        functional_model = tf.keras.applications.VGG16(
+                                                    weights = 'imagenet'
+                                                        )
         functional_model.trainable = False
         inputs = functional_model.input
 
         x = functional_model.layers[-2].output
-        # x = Dense(dense_1, activation='relu')(x)
-        # x = Dense(dense_2, activation='relu')(x)
-        # x = BatchNormalization()(x)
-        # x = Dense(dense_3, activation='relu')(x)
-        # x = Dense(dense_3, activation='relu')(x)
-        # x = Dense(dense_4, activation='relu')(x)
-        # x = Dense(dense_4, activation='relu')(x)
-        # outputs = Dense(num_classes, activation='softmax')(x)
-        x = Dropout(0.2)(x)
-        x = Dense(32, activation='relu')(x)
-        x = Dense(16, activation='relu')(x)
+        x = Dense(dense_1, activation='relu')(x)
+        x = Dense(dense_2, activation='relu')(x)
+        x = BatchNormalization()(x)
+        x = Dense(dense_3, activation='relu')(x)
+        x = Dense(dense_3, activation='relu')(x)
+        x = Dropout(keep_prob)(x)
+        x = Dense(dense_4, activation='relu')(x)
+        x = Dense(dense_4, activation='relu')(x)
         outputs = Dense(num_classes, activation='softmax')(x)
 
         model = Model(
@@ -71,32 +66,60 @@ class DiabeticRetinopathyDetection(object):
                           loss='categorical_crossentropy',
                           metrics=['accuracy']
                           )
-        self.model.fit_generator(
-                          self.train_generator,
-                          steps_per_epoch= self.train_step,
-                          validation_data= self.test_generator,
-                          validation_steps = self.test_step,
-                          epochs=epochs,
-                          verbose=verbose
-                        )
+        self.history = self.model.fit_generator(
+                                        self.train_generator,
+                                        steps_per_epoch= self.train_step,
+                                        validation_data= self.test_generator,
+                                        validation_steps = self.test_step,
+                                        epochs=epochs,
+                                        verbose=verbose
+                                            )
+        self.save_model()
+        self.plot_metrics()
+
+    def plot_metrics(self):
+        loss_train = self.history.history['loss']
+        loss_val = self.history.history['val_loss']
+
+        loss_train = np.cumsum(loss_train) / np.arange(1,num_epoches+1)
+        loss_val = np.cumsum(loss_val) / np.arange(1,num_epoches+1)
+
+        plt.plot(np.arange(1,num_epoches+1), loss_train, 'r', label='Training loss')
+        plt.plot(np.arange(1,num_epoches+1), loss_val, 'b', label='validation loss')
+        plt.title('Training and Validation loss')
+        plt.xlabel('Epochs')
+        plt.ylabel('Loss')
+        plt.savefig(loss_img)
+        plt.legend()
+        plt.show()
+
+        acc_train = self.history.history['accuracy']
+        acc_val = self.history.history['val_accuracy']
+
+        acc_train = np.cumsum(acc_train) / np.arange(1,num_epoches+1)
+        acc_val = np.cumsum(acc_val) / np.arange(1,num_epoches+1)
+
+        plt.plot(np.arange(1,num_epoches+1), acc_train, 'r', label='Training Accuracy')
+        plt.plot(np.arange(1,num_epoches+1), acc_val, 'b', label='validation Accuracy')
+        plt.title('Training and Validation Accuracy')
+        plt.xlabel('Epochs')
+        plt.ylabel('Accuracy')
+        plt.savefig(acc_img)
+        plt.legend()
+        plt.show()
 
     def save_model(self):
-        self.model.save()
+        self.model.save(model_weights)
         print("Diabetic Retinopathy Detection Model Saved")
 
     def load_model(self):
-        K.clear_session() #clearing the keras session before load model
-        self.feature_model = load_model(model_weights)
+        K.clear_session()
+        self.model = load_model(model_weights)
         print("Diabetic Retinopathy Detection Model Loaded")
 
     def run(self):
         if os.path.exists(model_weights):
-            print("Loading the model !!!")
             self.load_model()
         else:
-            print("Training the model !!!")
             self.model_conversion()
             self.train()
-
-model = DiabeticRetinopathyDetection()
-model.run()
