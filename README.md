@@ -52,3 +52,10 @@ $ conda install -c anaconda pandas
 $ conda install -c anaconda matplotlib
 $ conda install -c anaconda scikit-learn
 ```
+### Execute Code
+
+First CNN model started train. After that save the model as h5 file. Using that file it will create tflite model and that model use for inference.
+```sh
+$ python run.py
+```
+after run the script and all models stored pop-up window appear. using that select the test image and the model will inference results.
