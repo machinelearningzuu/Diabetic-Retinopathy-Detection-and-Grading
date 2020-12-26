@@ -29,14 +29,15 @@ tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 class DiabeticRetinopathyDetection(object):
     def __init__(self):
-        train_generator, test_generator = image_data_generator()
-        self.test_generator = test_generator
-        self.train_generator = train_generator
-        self.test_step = self.test_generator.samples // test_size
-        self.train_step = self.train_generator.samples // batch_size
+        if not os.path.exists(model_converter):
+            train_generator, test_generator = image_data_generator()
+            self.test_generator = test_generator
+            self.train_generator = train_generator
+            self.test_step = self.test_generator.samples // test_size
+            self.train_step = self.train_generator.samples // batch_size
 
     def model_conversion(self):
-        functional_model = tf.keras.applications.VGG16(
+        functional_model = tf.keras.applications.MobileNetV2(
                                                     weights = 'imagenet'
                                                         )
         functional_model.trainable = False
@@ -81,11 +82,11 @@ class DiabeticRetinopathyDetection(object):
         loss_train = self.history.history['loss']
         loss_val = self.history.history['val_loss']
 
-        loss_train = np.cumsum(loss_train) / np.arange(1,num_epoches+1)
-        loss_val = np.cumsum(loss_val) / np.arange(1,num_epoches+1)
+        loss_train = np.cumsum(loss_train) / np.arange(1,epochs+1)
+        loss_val = np.cumsum(loss_val) / np.arange(1,epochs+1)
 
-        plt.plot(np.arange(1,num_epoches+1), loss_train, 'r', label='Training loss')
-        plt.plot(np.arange(1,num_epoches+1), loss_val, 'b', label='validation loss')
+        plt.plot(np.arange(1,epochs+1), loss_train, 'r', label='Training loss')
+        plt.plot(np.arange(1,epochs+1), loss_val, 'b', label='validation loss')
         plt.title('Training and Validation loss')
         plt.xlabel('Epochs')
         plt.ylabel('Loss')
@@ -96,11 +97,11 @@ class DiabeticRetinopathyDetection(object):
         acc_train = self.history.history['accuracy']
         acc_val = self.history.history['val_accuracy']
 
-        acc_train = np.cumsum(acc_train) / np.arange(1,num_epoches+1)
-        acc_val = np.cumsum(acc_val) / np.arange(1,num_epoches+1)
+        acc_train = np.cumsum(acc_train) / np.arange(1,epochs+1)
+        acc_val = np.cumsum(acc_val) / np.arange(1,epochs+1)
 
-        plt.plot(np.arange(1,num_epoches+1), acc_train, 'r', label='Training Accuracy')
-        plt.plot(np.arange(1,num_epoches+1), acc_val, 'b', label='validation Accuracy')
+        plt.plot(np.arange(1,epochs+1), acc_train, 'r', label='Training Accuracy')
+        plt.plot(np.arange(1,epochs+1), acc_val, 'b', label='validation Accuracy')
         plt.title('Training and Validation Accuracy')
         plt.xlabel('Epochs')
         plt.ylabel('Accuracy')

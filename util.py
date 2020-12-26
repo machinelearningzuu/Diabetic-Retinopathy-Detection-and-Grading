@@ -18,7 +18,7 @@ physical_devices = tf.config.experimental.list_physical_devices('GPU')
 tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 def preprocessing_function(img):
-    img = tf.keras.applications.vgg16.preprocess_input(img)
+    img = tf.keras.applications.mobilenet_v2.preprocess_input(img)
     return img
 
 def get_class_names():

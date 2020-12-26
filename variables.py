@@ -15,7 +15,7 @@ dense_2 = 512
 dense_3 = 256
 dense_4 = 64
 num_classes = 5
-epochs = 5
+epochs = 2
 verbose = 1
 test_split = 0.15
 seed = 42
@@ -31,7 +31,14 @@ label_csv = 'data/Labels.csv'
 model_weights = "data/weights/retinopathy_model.h5"
 model_converter = "data/weights/model.tflite"
 
-# {0: 6150, 1: 588, 2: 1283, 4: 166, 3: 221}
-
+initial_dir = '/home/isuru1997/Projects and Codes/DBS projects/Diabetic Retinopathy Detection and Grading/data/Train Data/'
 extension = '.jpeg'
 images_per_class = 1000
+
+class_dict = {
+    0 : 'No Diabetic Retinopathy',
+    1 : 'Mild',
+    2 : 'Moderate',
+    3 : 'Severe',
+    4 : 'Proliferative Diabetic Retinopathy',
+    }
