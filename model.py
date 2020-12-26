@@ -29,38 +29,34 @@ tf.config.experimental.set_memory_growth(physical_devices[0], True)
 
 class DiabeticRetinopathyDetection(object):
     def __init__(self):
-        # train_generator, validation_generator, test_generator = image_data_generator()
-        # self.test_generator = test_generator
-        # self.train_generator = train_generator
-        # self.validation_generator = validation_generator
-        # self.train_step = self.train_generator.samples // batch_size
-        # self.validation_step = self.validation_generator.samples // valid_size
-        # self.test_step = self.test_generator.samples // batch_size
-
-        Ytrain, Xtrain, Ytest , Xtest = load_images()
-        self.Ytrain = Ytrain
-        self.Xtrain = Xtrain
-        self.Ytest = Ytest
-        self.Xtest = Xtest
-
-        print("Xtrain shape : {}".format(Xtrain.shape))
-        print("Ytrain shape : {}".format(Ytrain.shape))
-        print("Xtest  shape : {}".format(Xtest.shape))
-        print("Ytest  shape : {}".format(Ytest.shape))
+        train_generator, test_generator = image_data_generator()
+        self.test_generator = test_generator
+        self.train_generator = train_generator
+        self.test_step = self.test_generator.samples // test_size
+        self.train_step = self.train_generator.samples // batch_size
 
     def model_conversion(self):
         functional_model = tf.keras.applications.MobileNetV2(
-                                                    weights="imagenet"
+                                                    weights = None, 
+                                                    include_top=False, 
+                                                    input_shape=input_shape
                                                              )
         functional_model.trainable = False
         inputs = functional_model.input
 
         x = functional_model.layers[-2].output
-        x = Dense(dense_1, activation='relu')(x)
-        x = Dense(dense_1, activation='relu')(x)
-        x = Dense(dense_2, activation='relu')(x)
-        x = Dense(dense_2, activation='relu')(x)
-        outputs = Dense(len(get_class_names()), activation='softmax')(x)
+        # x = Dense(dense_1, activation='relu')(x)
+        # x = Dense(dense_2, activation='relu')(x)
+        # x = BatchNormalization()(x)
+        # x = Dense(dense_3, activation='relu')(x)
+        # x = Dense(dense_3, activation='relu')(x)
+        # x = Dense(dense_4, activation='relu')(x)
+        # x = Dense(dense_4, activation='relu')(x)
+        # outputs = Dense(num_classes, activation='softmax')(x)
+        x = Dropout(0.2)(x)
+        x = Dense(32, activation='relu')(x)
+        x = Dense(16, activation='relu')(x)
+        outputs = Dense(num_classes, activation='softmax')(x)
 
         model = Model(
                 inputs =inputs,
@@ -71,47 +67,36 @@ class DiabeticRetinopathyDetection(object):
 
     def train(self):
         self.model.compile(
-                          optimizer=Adam(learning_rate),
+                          optimizer='rmsprop',
                           loss='categorical_crossentropy',
                           metrics=['accuracy']
                           )
         self.model.fit_generator(
                           self.train_generator,
                           steps_per_epoch= self.train_step,
-                          validation_data= self.validation_generator,
-                          validation_steps = self.validation_step,
+                          validation_data= self.test_generator,
+                          validation_steps = self.test_step,
                           epochs=epochs,
                           verbose=verbose
                         )
 
-    def deep_ml_model(self):
-        functional_model = tf.keras.applications.MobileNetV2(
-                                                    weights="imagenet"
-                                                             )
-        pred = functional_model.predict(self.Xtrain)
-        model = KNeighborsClassifier(n_neighbors=3)
-        model.fit(pred, self.Ytrain)
-
-        score = model.score(pred, self.Ytrain)
-        print(score)
-
     def save_model(self):
-        self.model.save(model_weights)
+        self.model.save()
         print("Diabetic Retinopathy Detection Model Saved")
 
-    def loading_model(self):
+    def load_model(self):
         K.clear_session() #clearing the keras session before load model
         self.feature_model = load_model(model_weights)
         print("Diabetic Retinopathy Detection Model Loaded")
 
-    def Evaluation(self):
-        Predictions = self.model.predict_generator(self.test_generator,steps=self.test_step)
-        P = np.argmax(Predictions,axis=1)
-        loss , accuracy = self.model.evaluate_generator(self.test_generator, steps=self.test_step)
-        print("test loss : ",loss)
-        print("test accuracy : ",accuracy)
+    def run(self):
+        if os.path.exists(model_weights):
+            print("Loading the model !!!")
+            self.load_model()
+        else:
+            print("Training the model !!!")
+            self.model_conversion()
+            self.train()
 
 model = DiabeticRetinopathyDetection()
-# model.model_conversion()
-# model.train()
-model.deep_ml_model()
+model.run()

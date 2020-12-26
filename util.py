@@ -1,11 +1,13 @@
 import os
+import shutil
 import cv2 as cv
 import numpy as np
 import pandas as pd
 import tensorflow as tf
 from pathlib import Path
 from collections import Counter
-from sklearn.utils import shuffle, class_weight
+from sklearn.utils import shuffle
+from sklearn.model_selection import train_test_split
 
 from variables import*
 
@@ -14,23 +16,28 @@ def preprocessing_function(img):
     return img
 
 def get_class_names():
-    df = pd.read_csv(train_label_csv)
-    grade = df['Retinopathy grade'].values 
+    df = pd.read_csv(label_csv)
+    grade = df['level'].values 
     return list(set(grade))
 
 def move_image(source_path, destination_path):
     Path(source_path).rename(destination_path)
 
-def create_sub_directories(image_dir):
+def copy_image(source_path, destination_path):
+    shutil.copyfile(source_path, destination_path)
+
+def create_sub_directories():
     classes = get_class_names() 
-    for class_ in classes:
-        class_dir = os.path.join(image_dir, str(class_))
+    for i in classes:
+        class_dir = os.path.join(label_dir, str(i))
         if not os.path.exists(class_dir):
             os.makedirs(class_dir)
 
-def dir_exists(image_dir):
+def dir_exists():
     classes = get_class_names()
-    labels = list(map(int, os.listdir(train_dir)))
+    if not os.path.exists(label_dir):
+        os.makedirs(label_dir)
+    labels = list(map(int, os.listdir(label_dir)))
 
     classes.sort()
     labels.sort()
@@ -40,38 +47,65 @@ def dir_exists(image_dir):
     else:
         return False
 
-def configure_data_directory(image_dir, csv_dir):
+def get_class_data(label, grades, image_names):
+    class_grades = grades[grades == label]
+    class_images = image_names[grades == label]
 
-    create_sub_directories(image_dir)
+    if len(class_grades) > images_per_class:
+        random_idxs = np.random.choice(len(class_grades), images_per_class, replace=False)
+        class_grades = class_grades[random_idxs]
+        class_images = class_images[random_idxs]
 
-    df = pd.read_csv(csv_dir)
-    image_names = df['Image name'].values.tolist()
-    grades = df['Retinopathy grade'].values 
+    class_grades = class_grades.tolist()
+    class_images = class_images.tolist()
+    return class_grades, class_images
+
+def class_balancing(grades, image_names):
+    class_dict = dict(Counter(grades))
+    balanced_labels = []
+    balanced_images = []
+    for label in get_class_names():
+        class_grades, class_images = get_class_data(label, grades, image_names)
+        balanced_labels += class_grades
+        balanced_images += class_images
+    balanced_labels = np.array(balanced_labels)
+    balanced_images = np.array(balanced_images)
+    return balanced_labels, balanced_images
+
+def extract_images():
+    df = pd.read_csv(label_csv)
+    grades = df['level'].values 
+    image_names = df['image'].values 
 
     image_paths = os.listdir(image_dir)
-    image_paths = [img for img in image_paths if len(img.split('.')) > 1]
-    image_paths.sort()
+    image_paths = np.array([img.split('.')[0] for img in image_paths if len(img.split('.')) > 1])
 
-    image_paths_without_extension = [img.split('.')[0] for img in image_paths if len(img.split('.')) > 1]
-    assert image_names == image_paths_without_extension, "Image count and label count not matched"
+    existed_images = np.intersect1d(image_paths, image_names)
+    common_idxs = np.where(np.in1d(image_names, existed_images))[0]
+
+    image_names = image_names[common_idxs]
+    grades = grades[common_idxs]
+
+    # grades, image_names = class_balancing(grades, image_names)
+    return grades, image_names
+
+def configure_data_directory():
+
+    create_sub_directories()
+    grades, image_names = extract_images()
+    image_paths = [image_name + extension for image_name in image_names]
 
     for image, label in zip(image_paths, grades):
         image_path = os.path.join(image_dir, image)
-        destination_path = os.path.join(image_dir, str(label), image)
-        move_image(image_path, destination_path)
+        destination_path = os.path.join(label_dir, str(label), image)
+        copy_image(image_path, destination_path)
 
 def preprocess_data_directories():
-    if dir_exists(train_dir):
+    if dir_exists():
         print("Train directories are already configured")
     else:
         print("Train directories are configuring")
-        configure_data_directory(train_dir, train_label_csv)
-
-    if dir_exists(test_dir):
-        print("Test directories are already configured")
-    else:
-        print("Test directories are configuring")
-        configure_data_directory(test_dir, test_label_csv)
+        configure_data_directory()
 
 def image_data_generator():
     classes =  list(map(str, get_class_names()))
@@ -84,16 +118,12 @@ def image_data_generator():
                                     width_shift_range=shift_range,
                                     height_shift_range=shift_range,
                                     horizontal_flip = True,
-                                    validation_split= val_split,
+                                    validation_split= test_split,
                                     preprocessing_function=preprocessing_function
                                     )
-    test_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
-                                    preprocessing_function=preprocessing_function
-                                    )
-
 
     train_generator = train_datagen.flow_from_directory(
-                                    train_dir,
+                                    label_dir,
                                     target_size = target_size,
                                     color_mode = color_mode,
                                     batch_size = batch_size,
@@ -101,65 +131,13 @@ def image_data_generator():
                                     subset = 'training',
                                     shuffle = True)
 
-    validation_generator = train_datagen.flow_from_directory(
-                                    train_dir,
+    test_generator = train_datagen.flow_from_directory(
+                                    label_dir,
                                     target_size = target_size,
                                     color_mode = color_mode,
-                                    batch_size = valid_size,
+                                    batch_size = test_size,
                                     classes = classes,
                                     subset = 'validation',
                                     shuffle = True)
 
-    test_generator = test_datagen.flow_from_directory(
-                                    test_dir,
-                                    target_size = target_size,
-                                    color_mode = color_mode,
-                                    batch_size = batch_size,
-                                    classes = classes,
-                                    shuffle = False)
-
-    return train_generator, validation_generator, test_generator
-
-def load_numpy_data(data_path, save_path, Train=True):
-    if not os.path.exists(save_path):
-        if Train:
-            print("Train Images Saving")
-        else:
-            print("Test Images Saving")
-        images = []
-        classes = []
-        url_strings = []
-        image_folders = os.listdir(data_path)
-        for label in list(image_folders):
-            label_dir = os.path.join(data_path, label)
-            label_images = []
-            for img_name in os.listdir(label_dir):
-                img_path = os.path.join(label_dir, img_name)
-                img = cv.imread(img_path)
-                img = cv.cvtColor(img, cv.COLOR_BGR2RGB)
-                img = preprocessing_function(img)
-                img = cv.resize(img, target_size, cv.INTER_AREA).astype(np.float32)
-
-                images.append(img)
-                classes.append(int(label))
-
-        images = np.array(images).astype('float32')
-        classes = np.array(classes).astype('float32')
-        np.savez(save_path, name1=images, name2=classes)
-    else:
-        data = np.load(save_path, allow_pickle=True)
-        images = data['name1']
-        classes = data['name2']
-
-        if Train:
-            print("Train Images Loading")
-        else:
-            print("Test Images Loading")
-
-    classes, images = shuffle(classes, images)
-    return classes, images
-
-def load_images():
-    Ytrain, Xtrain = load_numpy_data(train_dir, train_data_path)
-    Ytest , Xtest  = load_numpy_data(test_dir, test_data_path, False)
-    return Ytrain, Xtrain, Ytest , Xtest
+    return train_generator, test_generator
