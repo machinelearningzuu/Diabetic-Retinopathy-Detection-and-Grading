@@ -115,8 +115,7 @@ def preprocess_data_directories():
 
 def image_data_generator():
     classes =  list(map(str, get_class_names()))
-    # preprocess_data_directories()
-    
+
     train_datagen = tf.keras.preprocessing.image.ImageDataGenerator(
                                     rotation_range = rotation_range,
                                     shear_range = shear_range,
